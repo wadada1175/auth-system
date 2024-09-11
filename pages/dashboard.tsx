@@ -1,23 +1,20 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { useRouter } from "next/router";
+import withAuth from "../hoc/withAuth";
 
 interface User {
   email: string;
   role: string;
 }
 
-export default function Dashboard() {
+function Dashboard() {
   const [user, setUser] = useState<User | null>(null);
   const router = useRouter();
 
   useEffect(() => {
     const token = localStorage.getItem("token");
-    if (!token) {
-      // トークンがない場合、ログインページにリダイレクト
-      router.push("/login");
-    } else {
-      // ユーザー情報を取得する
+    if (token) {
       axios
         .get("http://localhost:4000/me", {
           headers: { Authorization: `Bearer ${token}` },
@@ -26,14 +23,18 @@ export default function Dashboard() {
           setUser(response.data);
         })
         .catch(() => {
-          // 認証が失敗した場合はログインページにリダイレクト
           router.push("/login");
         });
     }
   }, [router]);
 
+  const handleLogout = () => {
+    localStorage.removeItem("token"); // トークンを削除
+    router.push("/login"); // ログインページへリダイレクト
+  };
+
   if (!user) {
-    return <p>Loading...</p>; // 認証中はローディングを表示
+    return <p>Loading...</p>;
   }
 
   return (
@@ -41,6 +42,10 @@ export default function Dashboard() {
       <h1>Dashboard</h1>
       <p>Welcome, {user.email}!</p>
       <p>Your role: {user.role}</p>
+      <button onClick={handleLogout}>Logout</button> {/* ログアウトボタン */}
     </div>
   );
 }
+
+// `withAuth` HOCで認証保護を追加
+export default withAuth(Dashboard);

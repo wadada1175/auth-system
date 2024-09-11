@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
-import { useRouter } from "next/router";
 import { jwtDecode } from "jwt-decode";
+import { useRouter } from "next/router";
 
 interface LoginResponse {
   token: string;
@@ -18,6 +18,14 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      // すでにログインしている場合はダッシュボードへリダイレクト
+      router.push("/dashboard");
+    }
+  }, [router]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -27,8 +35,7 @@ export default function Login() {
       );
       const token = response.data.token;
       localStorage.setItem("token", token);
-      const decoded: DecodedToken = jwtDecode(token); // 修正ポイント
-      console.log("Logged in as:", decoded.role);
+      const decoded: DecodedToken = jwtDecode(token);
       router.push("/dashboard"); // ダッシュボードへリダイレクト
     } catch (error) {
       console.error("Login failed", error);
