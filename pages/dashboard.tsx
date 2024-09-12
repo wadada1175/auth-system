@@ -5,7 +5,7 @@ import withAuth from "../hoc/withAuth";
 import Link from "next/link";
 
 interface User {
-  email: string;
+  name: string;
   role: string;
 }
 
@@ -41,7 +41,7 @@ function Dashboard() {
   return (
     <div>
       <h1>Dashboard</h1>
-      <p>Welcome, {user.email}!</p>
+      <p>Welcome, {user.name}!</p>
       <p>Your role: {user.role}</p>
       <button onClick={handleLogout}>Logout</button> {/* ログアウトボタン */}
       <Link href="/adminShifts">Admin Shifts</Link>{" "}

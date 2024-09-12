@@ -25,11 +25,44 @@ model Shift {
   updatedAt  DateTime @updatedAt
 }
 
+model EmergencyContact {
+  id             Int        @id @default(autoincrement())
+  name           String     // 緊急連絡先の名前
+  relationship   String     // 属柄
+  phoneNumber    String     // 緊急連絡先の電話番号
+  userId         Int        @unique
+  user           User       @relation(fields: [userId], references: [id])
+}
+
+model Qualification {
+  id             Int        @id @default(autoincrement())
+  name           String     // 資格名
+  userId         Int
+  user           User       @relation(fields: [userId], references: [id])
+}
+
+model NGStaff {
+  id             Int        @id @default(autoincrement())
+  name           String     // NGスタッフの名前
+  userId         Int
+  user           User       @relation(fields: [userId], references: [id])
+}
+
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  password  String
-  role      String
-  createdAt DateTime @default(now())
-  shifts    Shift[]
+  id             Int        @id @default(autoincrement())
+  staffNumber    String     @unique // 隊員番号をユニークに
+  name           String     @default("未設定") // デフォルト値
+  address        String     @default("未設定") // デフォルト値
+  phoneNumber    String     @default("未設定") // デフォルト値
+  dateOfBirth    DateTime   @default(now()) // デフォルト値を現在の時刻に
+  email          String     @unique // メールアドレス
+  password       String
+  role           String
+  employmentStatus String   @default("未設定") // デフォルト値
+  employmentStartDate DateTime @default(now()) // 雇用開始日は現在の日付に設定
+  emergencyContact EmergencyContact? // 緊急連絡先
+  qualifications Qualification[] // 資格情報
+  ngStaffList    NGStaff[]  // NG隊員リスト
+  createdAt      DateTime   @default(now())
+  shifts         Shift[]    // シフト情報
 }

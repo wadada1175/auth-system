@@ -13,49 +13,68 @@ app.use(express.json());
 const SECRET_KEY = "your_secret_key"; // JWTのシークレットキー
 
 // ユーザー登録API
-app.post("/register", async (req, res) => {
-  const { email, password, role } = req.body;
+app.post("/registerUser", authenticateToken, async (req, res) => {
+  const {
+    staffNumber,
+    name,
+    address,
+    phoneNumber,
+    dateOfBirth,
+    email,
+    password,
+    employmentStatus,
+    employmentStartDate,
+  } = req.body;
+
   const hashedPassword = await bcrypt.hash(password, 10);
 
   try {
-    const user = await prisma.user.create({
+    const newUser = await prisma.user.create({
       data: {
+        staffNumber,
+        name,
+        address,
+        phoneNumber,
+        dateOfBirth: new Date(dateOfBirth),
         email,
         password: hashedPassword,
-        role,
+        employmentStatus,
+        employmentStartDate: new Date(employmentStartDate),
+        role: "staff", // デフォルトで "staff" 役割を付与
       },
     });
-    res.status(201).json(user);
-  } catch (err) {
-    res.status(500).json({ error: "User registration failed" });
+    res.status(201).json(newUser);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to register user" });
   }
 });
 
 // ログインAPI
 app.post("/login", async (req, res) => {
-  const { email, password } = req.body;
+  const { staffNumber, password } = req.body;
 
   try {
     const user = await prisma.user.findUnique({
-      where: { email },
+      where: { staffNumber },
     });
 
-    if (!user) {
-      return res.status(400).json({ error: "User not found" });
+    // パスワードの比較 (ハッシュ化されたパスワードと入力されたパスワード)
+    const validPassword = await bcrypt.compare(password, user.password);
+
+    if (!user || !validPassword) {
+      return res
+        .status(401)
+        .json({ error: "Invalid staff number or password" });
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      return res.status(400).json({ error: "Invalid password" });
-    }
-
+    // JWTトークンを発行
     const token = jwt.sign({ userId: user.id, role: user.role }, SECRET_KEY, {
       expiresIn: "1h",
     });
 
     res.json({ token });
-  } catch (err) {
-    res.status(500).json({ error: "Login failed" });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to login" });
   }
 });
 
@@ -77,31 +96,23 @@ function authenticateToken(req, res, next) {
 }
 
 // ユーザー情報取得API (認証必要)
-// /me エンドポイント
-app.get("/me", (req, res) => {
-  const token = req.headers.authorization?.split(" ")[1];
-
-  if (!token) {
-    return res.status(403).json({ error: "No token provided" });
-  }
-
+app.get("/me", authenticateToken, async (req, res) => {
   try {
-    const decoded = jwt.verify(token, SECRET_KEY);
-    res.json({ userId: decoded.userId, role: decoded.role });
-  } catch (err) {
-    return res.status(403).json({ error: "Invalid token" });
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.userId },
+    });
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch user info" });
   }
 });
 
 // シフト提出API
-app.post("/shifts", async (req, res) => {
+app.post("/shifts", authenticateToken, async (req, res) => {
   const { userId, date, startTime, endTime } = req.body;
-  const token = req.headers.authorization?.split(" ")[1];
 
   try {
-    // JWTトークンをデコードしてユーザーを確認
-    const decoded = jwt.verify(token, SECRET_KEY);
-    if (decoded.userId !== Number(userId)) {
+    if (req.user.userId !== Number(userId)) {
       return res.status(403).json({ error: "Unauthorized user" });
     }
 
@@ -123,13 +134,11 @@ app.post("/shifts", async (req, res) => {
 });
 
 // 特定のユーザーのシフト取得API
-app.get("/shifts/:userId", async (req, res) => {
+app.get("/shifts/:userId", authenticateToken, async (req, res) => {
   const { userId } = req.params;
-  const token = req.headers.authorization?.split(" ")[1];
 
   try {
-    const decoded = jwt.verify(token, SECRET_KEY);
-    if (decoded.userId !== Number(userId)) {
+    if (req.user.userId !== Number(userId)) {
       return res
         .status(403)
         .json({ error: "Access denied. Cannot view other user shifts." });
@@ -147,13 +156,9 @@ app.get("/shifts/:userId", async (req, res) => {
 });
 
 // すべてのシフト取得API (管理者用)
-app.get("/shifts", async (req, res) => {
-  const token = req.headers.authorization?.split(" ")[1];
-
+app.get("/shifts", authenticateToken, async (req, res) => {
   try {
-    // JWTトークンをデコードして管理者かどうかを確認
-    const decoded = jwt.verify(token, SECRET_KEY);
-    if (decoded.role !== "admin") {
+    if (req.user.role !== "admin") {
       return res.status(403).json({ error: "Access denied. Admins only." });
     }
 
@@ -167,15 +172,12 @@ app.get("/shifts", async (req, res) => {
 });
 
 // シフトの更新API（管理者のみ）
-app.put("/shifts/:id", async (req, res) => {
+app.put("/shifts/:id", authenticateToken, async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
-  const token = req.headers.authorization?.split(" ")[1];
 
   try {
-    // JWTをデコードして管理者かどうかを確認
-    const decoded = jwt.verify(token, SECRET_KEY);
-    if (decoded.role !== "admin") {
+    if (req.user.role !== "admin") {
       return res.status(403).json({ error: "Access denied. Admins only." });
     }
 
@@ -191,7 +193,7 @@ app.put("/shifts/:id", async (req, res) => {
 });
 
 // シフト削除API
-app.delete("/shifts/:id", async (req, res) => {
+app.delete("/shifts/:id", authenticateToken, async (req, res) => {
   const { id } = req.params;
   try {
     await prisma.shift.delete({
