@@ -77,14 +77,19 @@ function authenticateToken(req, res, next) {
 }
 
 // ユーザー情報取得API (認証必要)
-app.get("/me", authenticateToken, async (req, res) => {
+// /me エンドポイント
+app.get("/me", (req, res) => {
+  const token = req.headers.authorization?.split(" ")[1];
+
+  if (!token) {
+    return res.status(403).json({ error: "No token provided" });
+  }
+
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.user.userId },
-    });
-    res.json(user);
+    const decoded = jwt.verify(token, SECRET_KEY);
+    res.json({ userId: decoded.userId, role: decoded.role });
   } catch (err) {
-    res.status(500).json({ error: "Failed to fetch user" });
+    return res.status(403).json({ error: "Invalid token" });
   }
 });
 

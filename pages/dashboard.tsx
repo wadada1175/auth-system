@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { useRouter } from "next/router";
 import withAuth from "../hoc/withAuth";
+import Link from "next/link";
 
 interface User {
   email: string;
@@ -43,6 +44,12 @@ function Dashboard() {
       <p>Welcome, {user.email}!</p>
       <p>Your role: {user.role}</p>
       <button onClick={handleLogout}>Logout</button> {/* ログアウトボタン */}
+      <Link href="/adminShifts">Admin Shifts</Link>{" "}
+      {/* 管理者用シフトページへのリンク */}
+      <Link href="/shifts">シフト確認</Link>{" "}
+      {/* ユーザー用シフトページへのリンク */}
+      <Link href="/submitShift">シフト提出</Link>{" "}
+      {/* シフト提出ページへのリンク */}
     </div>
   );
 }
